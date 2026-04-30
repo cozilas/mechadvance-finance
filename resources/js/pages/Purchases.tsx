@@ -1,0 +1,211 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { Plus, Pencil, Trash2, Eye } from 'lucide-react';
+import { purchases as api, suppliers as suppliersApi } from '../api';
+import type { Purchase, PurchaseStatus } from '../types';
+import PageHeader from '../components/PageHeader';
+import Table from '../components/Table';
+import Modal from '../components/Modal';
+import StatusBadge from '../components/StatusBadge';
+import LineItemsEditor from '../components/LineItemsEditor';
+
+const STATUSES: PurchaseStatus[] = ['draft', 'ordered', 'received', 'paid', 'cancelled'];
+const fmt = (n: number | string) => `€${parseFloat(String(n)).toFixed(2)}`;
+
+function PurchaseForm({ initial, onSave, onClose }: {
+  initial?: Partial<Purchase>;
+  onSave: (d: any) => void;
+  onClose: () => void;
+}) {
+  const { data: supplierList = [] } = useQuery({ queryKey: ['suppliers'], queryFn: () => suppliersApi.list() });
+  const { register, handleSubmit, control, watch } = useForm({
+    defaultValues: {
+      supplier_id: initial?.supplier_id ?? '',
+      order_date: initial?.order_date?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+      expected_date: initial?.expected_date?.slice(0, 10) ?? '',
+      received_date: initial?.received_date?.slice(0, 10) ?? '',
+      status: initial?.status ?? 'draft',
+      tax_rate: initial?.tax_rate ?? 0,
+      discount: initial?.discount ?? 0,
+      currency: initial?.currency ?? 'EUR',
+      notes: initial?.notes ?? '',
+      items: initial?.items ?? [{ description: '', quantity: 1, unit_price: 0 }],
+    },
+  });
+
+  return (
+    <form onSubmit={handleSubmit(onSave)} className="space-y-5">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Supplier *</label>
+          <select {...register('supplier_id', { required: true })} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Select supplier…</option>
+            {supplierList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Order Date *</label>
+          <input {...register('order_date', { required: true })} type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Expected Delivery</label>
+          <input {...register('expected_date')} type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Received Date</label>
+          <input {...register('received_date')} type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+          <select {...register('status')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Currency</label>
+          <input {...register('currency')} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+          <input {...register('tax_rate')} type="number" step="0.01" min="0" max="100" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Discount (€)</label>
+          <input {...register('discount')} type="number" step="0.01" min="0" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-2">Line Items</label>
+        <LineItemsEditor control={control} register={register} watch={watch} />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
+        <textarea {...register('notes')} rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+        <button type="submit" className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700">Save</button>
+      </div>
+    </form>
+  );
+}
+
+export default function Purchases() {
+  const qc = useQueryClient();
+  const [modal, setModal] = useState<'create' | Purchase | 'view' | null>(null);
+  const [viewing, setViewing] = useState<Purchase | null>(null);
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const { data = [] } = useQuery({
+    queryKey: ['purchases', statusFilter],
+    queryFn: () => api.list(statusFilter ? { status: statusFilter } : undefined),
+  });
+
+  const { data: detail } = useQuery({
+    queryKey: ['purchase', viewing?.id],
+    queryFn: () => api.get(viewing!.id),
+    enabled: !!viewing,
+  });
+
+  const create = useMutation({
+    mutationFn: (d: any) => api.create(d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchases'] }); setModal(null); },
+  });
+  const update = useMutation({
+    mutationFn: ({ id, ...d }: any) => api.update(id, d),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['purchases'] }); setModal(null); },
+  });
+  const remove = useMutation({
+    mutationFn: (id: number) => api.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['purchases'] }),
+  });
+
+  const columns = [
+    { key: 'number',      header: 'PO Number' },
+    { key: 'supplier',    header: 'Supplier',  render: (r: Purchase) => r.supplier?.name ?? '—' },
+    { key: 'order_date',  header: 'Order Date', render: (r: Purchase) => r.order_date?.slice(0, 10) },
+    { key: 'expected_date', header: 'Expected', render: (r: Purchase) => r.expected_date?.slice(0, 10) ?? '—' },
+    { key: 'total',       header: 'Total',      render: (r: Purchase) => fmt(r.total) },
+    { key: 'status',      header: 'Status',     render: (r: Purchase) => <StatusBadge status={r.status} /> },
+    {
+      key: 'actions', header: '',
+      render: (r: Purchase) => (
+        <div className="flex gap-2 justify-end" onClick={e => e.stopPropagation()}>
+          <button onClick={() => { setViewing(r); setModal('view'); }} className="text-gray-400 hover:text-blue-600"><Eye size={14} /></button>
+          <button onClick={() => setModal(r)} className="text-gray-400 hover:text-blue-600"><Pencil size={14} /></button>
+          <button onClick={() => confirm('Delete purchase order?') && remove.mutate(r.id)} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <PageHeader
+        title="Purchases"
+        subtitle={`${data.length} records`}
+        action={
+          <button onClick={() => setModal('create')} className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+            <Plus size={15} /> New Purchase Order
+          </button>
+        }
+      />
+      <div className="p-8 space-y-4">
+        <div className="flex gap-2 flex-wrap">
+          {['', ...STATUSES].map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${statusFilter === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>
+              {s || 'All'}
+            </button>
+          ))}
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <Table columns={columns} data={data as unknown as Record<string, unknown>[]} />
+        </div>
+      </div>
+
+      {modal === 'create' && (
+        <Modal title="New Purchase Order" onClose={() => setModal(null)} wide>
+          <PurchaseForm onSave={(d) => create.mutate(d)} onClose={() => setModal(null)} />
+        </Modal>
+      )}
+      {modal && modal !== 'create' && modal !== 'view' && (
+        <Modal title="Edit Purchase Order" onClose={() => setModal(null)} wide>
+          <PurchaseForm initial={modal as Purchase} onSave={(d) => update.mutate({ ...d, id: (modal as Purchase).id })} onClose={() => setModal(null)} />
+        </Modal>
+      )}
+      {modal === 'view' && detail && (
+        <Modal title={`Purchase Order ${detail.number}`} onClose={() => { setModal(null); setViewing(null); }} wide>
+          <div className="space-y-4 text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div><span className="text-gray-500">Supplier:</span> <span className="font-medium">{detail.supplier?.name}</span></div>
+              <div><span className="text-gray-500">Status:</span> <StatusBadge status={detail.status} /></div>
+              <div><span className="text-gray-500">Order Date:</span> {detail.order_date?.slice(0, 10)}</div>
+              <div><span className="text-gray-500">Expected:</span> {detail.expected_date?.slice(0, 10) ?? '—'}</div>
+              <div><span className="text-gray-500">Received:</span> {detail.received_date?.slice(0, 10) ?? '—'}</div>
+            </div>
+            <table className="w-full text-sm border-t border-gray-100 mt-2">
+              <thead><tr className="text-xs text-gray-500 border-b border-gray-100">
+                <th className="text-left py-2">Description</th><th className="text-right py-2">Qty</th><th className="text-right py-2">Unit Price</th><th className="text-right py-2">Total</th>
+              </tr></thead>
+              <tbody>
+                {detail.items?.map((item, i) => (
+                  <tr key={i} className="border-b border-gray-50">
+                    <td className="py-2">{item.description}</td><td className="text-right py-2">{item.quantity}</td><td className="text-right py-2">{fmt(item.unit_price)}</td><td className="text-right py-2">{fmt(item.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex justify-end gap-6 text-sm pt-2">
+              <div>Subtotal: <span className="font-medium">{fmt(detail.subtotal)}</span></div>
+              <div>Tax ({detail.tax_rate}%): <span className="font-medium">{fmt(detail.tax_amount)}</span></div>
+              <div>Discount: <span className="font-medium">-{fmt(detail.discount)}</span></div>
+              <div className="text-base font-semibold">Total: {fmt(detail.total)}</div>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
