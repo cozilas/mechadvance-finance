@@ -10,9 +10,6 @@ const styles: Record<string, string> = {
   rejected:  'bg-red-100 text-red-700',
   expired:   'bg-orange-100 text-orange-700',
   converted: 'bg-purple-100 text-purple-700',
-  // purchases
-  ordered:   'bg-blue-100 text-blue-700',
-  received:  'bg-teal-100 text-teal-700',
   // expenses
   pending:   'bg-yellow-100 text-yellow-700',
   approved:  'bg-green-100 text-green-700',

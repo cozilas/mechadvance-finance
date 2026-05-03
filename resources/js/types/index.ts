@@ -77,29 +77,6 @@ export interface Supplier {
   updated_at: string;
 }
 
-export type PurchaseStatus = 'draft' | 'ordered' | 'received' | 'paid' | 'cancelled';
-
-export interface Purchase {
-  id: number;
-  number: string;
-  supplier_id: number;
-  supplier?: Supplier;
-  order_date: string;
-  expected_date: string | null;
-  received_date: string | null;
-  status: PurchaseStatus;
-  subtotal: number;
-  tax_rate: number;
-  tax_amount: number;
-  discount: number;
-  total: number;
-  currency: string;
-  notes: string | null;
-  items?: InvoiceItem[];
-  created_at: string;
-  updated_at: string;
-}
-
 export interface ExpenseCategory {
   id: number;
   name: string;
@@ -128,7 +105,6 @@ export interface ReportSummary {
   revenue: number;
   outstanding: number;
   expenses: number;
-  purchases: number;
   total_costs: number;
   profit: number;
 }

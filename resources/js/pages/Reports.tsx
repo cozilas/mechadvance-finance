@@ -17,14 +17,14 @@ export default function Reports() {
 
   const { data: summary } = useQuery({ queryKey: ['summary'], queryFn: () => reports.summary() });
   const { data: revByMonth } = useQuery({ queryKey: ['revenue-by-month', year], queryFn: () => reports.revenueByMonth(year) });
-  const { data: purByMonth } = useQuery({ queryKey: ['purchases-by-month', year], queryFn: () => reports.purchasesByMonth(year) });
+  const { data: expByMonth } = useQuery({ queryKey: ['expenses-by-month', year], queryFn: () => reports.expensesByMonth(year) });
   const { data: expByCat } = useQuery({ queryKey: ['expenses-by-category'], queryFn: () => reports.expensesByCategory() });
   const { data: aging } = useQuery({ queryKey: ['invoice-aging'], queryFn: () => reports.invoiceAging() });
 
   const monthlyData = (revByMonth?.data ?? []).map((r, i) => ({
     month: MONTHS[i],
     revenue: r.total,
-    purchases: purByMonth?.data[i]?.total ?? 0,
+    expenses: expByMonth?.data[i]?.total ?? 0,
   }));
 
   const catData = (expByCat as any)?.data ?? [];
@@ -56,10 +56,10 @@ export default function Reports() {
           ))}
         </div>
 
-        {/* Revenue vs Purchases */}
+        {/* Revenue vs Expenses */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-700">Revenue vs Purchases by Month</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Revenue vs Expenses by Month</h2>
             <div className="flex gap-1">
               {[currentYear - 1, currentYear].map(y => (
                 <button key={y} onClick={() => setYear(y)}
@@ -76,8 +76,8 @@ export default function Reports() {
               <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `€${v}`} />
               <Tooltip formatter={(v: number) => fmt(v)} />
               <Legend />
-              <Bar dataKey="revenue"   name="Revenue"   fill="#3b82f6" radius={[4,4,0,0]} />
-              <Bar dataKey="purchases" name="Purchases" fill="#f87171" radius={[4,4,0,0]} />
+              <Bar dataKey="revenue"  name="Revenue"  fill="#3b82f6" radius={[4,4,0,0]} />
+              <Bar dataKey="expenses" name="Expenses" fill="#f87171" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

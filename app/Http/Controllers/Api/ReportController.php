@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\Invoice;
-use App\Models\Purchase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,20 +28,13 @@ class ReportController extends Controller
             ->whereBetween('date', [$from, $to])
             ->sum('amount');
 
-        $purchases = Purchase::whereIn('status', ['received', 'paid'])
-            ->whereBetween('order_date', [$from, $to])
-            ->sum('total');
-
-        $totalCosts = $expenses + $purchases;
-
         return response()->json([
             'period'      => ['from' => $from, 'to' => $to],
             'revenue'     => (float) $revenue,
             'outstanding' => (float) $outstanding,
             'expenses'    => (float) $expenses,
-            'purchases'   => (float) $purchases,
-            'total_costs' => (float) $totalCosts,
-            'profit'      => (float) ($revenue - $totalCosts),
+            'total_costs' => (float) $expenses,
+            'profit'      => (float) ($revenue - $expenses),
         ]);
     }
 
@@ -112,15 +104,15 @@ class ReportController extends Controller
         return response()->json($result);
     }
 
-    public function purchasesByMonth(Request $request): JsonResponse
+    public function expensesByMonth(Request $request): JsonResponse
     {
         $year = $request->year ?? now()->year;
 
-        $rows = Purchase::whereIn('status', ['received', 'paid'])
-            ->whereYear('order_date', $year)
-            ->selectRaw("strftime('%m', order_date) as month, SUM(total) as total")
-            ->groupByRaw("strftime('%m', order_date)")
-            ->orderByRaw("strftime('%m', order_date)")
+        $rows = Expense::where('status', 'approved')
+            ->whereYear('date', $year)
+            ->selectRaw("strftime('%m', date) as month, SUM(amount) as total")
+            ->groupByRaw("strftime('%m', date)")
+            ->orderByRaw("strftime('%m', date)")
             ->get()
             ->keyBy('month');
 

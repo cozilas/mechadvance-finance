@@ -31,12 +31,12 @@ export default function Dashboard() {
 
   const { data: summary } = useQuery({ queryKey: ['summary'], queryFn: () => reports.summary() });
   const { data: revByMonth } = useQuery({ queryKey: ['revenue-by-month', year], queryFn: () => reports.revenueByMonth(year) });
-  const { data: purByMonth } = useQuery({ queryKey: ['purchases-by-month', year], queryFn: () => reports.purchasesByMonth(year) });
+  const { data: expByMonth } = useQuery({ queryKey: ['expenses-by-month', year], queryFn: () => reports.expensesByMonth(year) });
 
   const chartData = (revByMonth?.data ?? []).map((r, i) => ({
     month: MONTHS[i],
     revenue: r.total,
-    purchases: purByMonth?.data[i]?.total ?? 0,
+    expenses: expByMonth?.data[i]?.total ?? 0,
   }));
 
   return (
@@ -50,7 +50,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Revenue"     value={fmt(summary?.revenue ?? 0)}     icon={DollarSign}  color="bg-green-500"  sub="Paid invoices" />
           <StatCard label="Outstanding" value={fmt(summary?.outstanding ?? 0)} icon={Clock}       color="bg-yellow-500" sub="Sent/overdue" />
-          <StatCard label="Total Costs" value={fmt(summary?.total_costs ?? 0)} icon={TrendingDown} color="bg-red-500"   sub="Expenses + purchases" />
+          <StatCard label="Total Costs" value={fmt(summary?.total_costs ?? 0)} icon={TrendingDown} color="bg-red-500"   sub="Approved expenses" />
           <StatCard label="Profit"      value={fmt(summary?.profit ?? 0)}      icon={TrendingUp}  color="bg-blue-500"  sub="Revenue – costs" />
         </div>
 
@@ -75,15 +75,15 @@ export default function Dashboard() {
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Revenue vs Purchases {year}</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-4">Revenue vs Expenses {year}</h2>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `€${v}`} />
                 <Tooltip formatter={(v: number) => fmt(v)} />
-                <Bar dataKey="revenue"   fill="#3b82f6" radius={[4,4,0,0]} name="Revenue" />
-                <Bar dataKey="purchases" fill="#f87171" radius={[4,4,0,0]} name="Purchases" />
+                <Bar dataKey="revenue"  fill="#3b82f6" radius={[4,4,0,0]} name="Revenue" />
+                <Bar dataKey="expenses" fill="#f87171" radius={[4,4,0,0]} name="Expenses" />
               </BarChart>
             </ResponsiveContainer>
           </div>

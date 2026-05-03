@@ -1,6 +1,6 @@
 import http from './client';
 import type {
-  Client, Invoice, Quotation, Supplier, Purchase, Expense,
+  Client, Invoice, Quotation, Supplier, Expense,
   ExpenseCategory, ReportSummary, MonthlyTotal,
 } from '../types';
 
@@ -41,15 +41,6 @@ export const suppliers = {
   remove: (id: number) => http.delete(`/suppliers/${id}`),
 };
 
-// Purchases
-export const purchases = {
-  list: (params?: object) => http.get<Purchase[]>('/purchases', { params }).then(r => r.data),
-  get: (id: number) => http.get<Purchase>(`/purchases/${id}`).then(r => r.data),
-  create: (data: object) => http.post<Purchase>('/purchases', data).then(r => r.data),
-  update: (id: number, data: object) => http.patch<Purchase>(`/purchases/${id}`, data).then(r => r.data),
-  remove: (id: number) => http.delete(`/purchases/${id}`),
-};
-
 // Expenses
 export const expenses = {
   list: (params?: object) => http.get<Expense[]>('/expenses', { params }).then(r => r.data),
@@ -65,7 +56,7 @@ export const expenses = {
 export const reports = {
   summary: (params?: object) => http.get<ReportSummary>('/reports/summary', { params }).then(r => r.data),
   revenueByMonth: (year?: number) => http.get<{ year: number; data: MonthlyTotal[] }>('/reports/revenue-by-month', { params: { year } }).then(r => r.data),
-  purchasesByMonth: (year?: number) => http.get<{ year: number; data: MonthlyTotal[] }>('/reports/purchases-by-month', { params: { year } }).then(r => r.data),
+  expensesByMonth: (year?: number) => http.get<{ year: number; data: MonthlyTotal[] }>('/reports/expenses-by-month', { params: { year } }).then(r => r.data),
   expensesByCategory: (params?: object) => http.get('/reports/expenses-by-category', { params }).then(r => r.data),
   invoiceAging: () => http.get('/reports/invoice-aging').then(r => r.data),
 };

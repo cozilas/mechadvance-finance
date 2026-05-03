@@ -10,7 +10,6 @@ import Clients from './pages/Clients';
 import Invoices from './pages/Invoices';
 import Quotations from './pages/Quotations';
 import Suppliers from './pages/Suppliers';
-import Purchases from './pages/Purchases';
 import Expenses from './pages/Expenses';
 import Reports from './pages/Reports';
 
@@ -29,7 +28,6 @@ createRoot(document.getElementById('app')!).render(
             <Route path="invoices"   element={<Invoices />} />
             <Route path="quotations" element={<Quotations />} />
             <Route path="suppliers"  element={<Suppliers />} />
-            <Route path="purchases"  element={<Purchases />} />
             <Route path="expenses"   element={<Expenses />} />
             <Route path="reports"    element={<Reports />} />
           </Route>

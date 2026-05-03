@@ -36,7 +36,7 @@ class SupplierController extends Controller
 
     public function show(Supplier $supplier): JsonResponse
     {
-        return response()->json($supplier->load('purchases'));
+        return response()->json($supplier);
     }
 
     public function update(Request $request, Supplier $supplier): JsonResponse

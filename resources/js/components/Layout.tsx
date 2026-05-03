@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, Users, FileText, ClipboardList,
-  ShoppingCart, Receipt, Building2, TrendingUp,
+  Receipt, Building2, TrendingUp,
 } from 'lucide-react';
 
 const nav = [
@@ -10,7 +10,6 @@ const nav = [
   { to: '/invoices',   label: 'Invoices',     icon: FileText },
   { to: '/quotations', label: 'Quotations',   icon: ClipboardList },
   { to: '/suppliers',  label: 'Suppliers',    icon: Building2 },
-  { to: '/purchases',  label: 'Purchases',    icon: ShoppingCart },
   { to: '/expenses',   label: 'Expenses',     icon: Receipt },
   { to: '/reports',    label: 'Reports',      icon: TrendingUp },
 ];
