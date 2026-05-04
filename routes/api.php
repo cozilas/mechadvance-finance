@@ -16,6 +16,8 @@ Route::apiResource('quotations', QuotationController::class);
 Route::post('quotations/{quotation}/convert', [QuotationController::class, 'convert']);
 
 Route::apiResource('expenses', ExpenseController::class);
+Route::post('expenses/{expense}/receipt', [ExpenseController::class, 'uploadReceipt']);
+Route::delete('expenses/{expense}/receipt', [ExpenseController::class, 'deleteReceipt']);
 Route::get('expense-categories', [ExpenseController::class, 'categories']);
 Route::post('expense-categories', [ExpenseController::class, 'storeCategory']);
 

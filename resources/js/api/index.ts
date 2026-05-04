@@ -50,6 +50,12 @@ export const expenses = {
   remove: (id: number) => http.delete(`/expenses/${id}`),
   categories: () => http.get<ExpenseCategory[]>('/expense-categories').then(r => r.data),
   createCategory: (data: object) => http.post<ExpenseCategory>('/expense-categories', data).then(r => r.data),
+  uploadReceipt: (id: number, file: File) => {
+    const form = new FormData();
+    form.append('receipt', file);
+    return http.post<Expense>(`/expenses/${id}/receipt`, form).then(r => r.data);
+  },
+  deleteReceipt: (id: number) => http.delete<Expense>(`/expenses/${id}/receipt`).then(r => r.data),
 };
 
 // Reports

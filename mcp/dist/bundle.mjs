@@ -30836,6 +30836,8 @@ var StdioServerTransport = class {
 };
 
 // src/api.ts
+import { readFileSync } from "fs";
+import { basename, extname } from "path";
 var BASE_URL = process.env.FINANCE_API_URL ?? "http://localhost:8000/api";
 async function request(method, path, body) {
   const url2 = `${BASE_URL}${path}`;
@@ -30850,6 +30852,25 @@ async function request(method, path, body) {
   }
   return text ? JSON.parse(text) : null;
 }
+var MIME = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".pdf": "application/pdf"
+};
+async function postFile(path, filePath, fieldName) {
+  const url2 = `${BASE_URL}${path}`;
+  const ext = extname(filePath).toLowerCase();
+  const mime = MIME[ext] ?? "application/octet-stream";
+  const buffer = readFileSync(filePath);
+  const form = new FormData();
+  form.append(fieldName, new Blob([buffer], { type: mime }), basename(filePath));
+  const res = await fetch(url2, { method: "POST", headers: { "Accept": "application/json" }, body: form });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`API POST ${path} \u2192 ${res.status}: ${text}`);
+  return text ? JSON.parse(text) : null;
+}
 var api = {
   get: (path, params) => {
     const qs = params ? "?" + new URLSearchParams(
@@ -30860,7 +30881,8 @@ var api = {
   post: (path, body) => request("POST", path, body),
   put: (path, body) => request("PUT", path, body),
   patch: (path, body) => request("PATCH", path, body),
-  delete: (path) => request("DELETE", path)
+  delete: (path) => request("DELETE", path),
+  postFile: (path, filePath, field) => postFile(path, filePath, field)
 };
 
 // src/index.ts
@@ -31025,8 +31047,11 @@ server.tool("delete_quotation", "Delete a quotation", {
 server.tool("list_expenses", "List expenses with optional filters", {
   category_id: external_exports.number().optional(),
   status: external_exports.enum(["pending", "approved", "rejected"]).optional(),
+  vendor: external_exports.string().optional().describe("Partial vendor name search"),
   from: external_exports.string().optional().describe("Start date YYYY-MM-DD"),
-  to: external_exports.string().optional().describe("End date YYYY-MM-DD")
+  to: external_exports.string().optional().describe("End date YYYY-MM-DD"),
+  min_amount: external_exports.number().min(0).optional().describe("Minimum net amount"),
+  max_amount: external_exports.number().min(0).optional().describe("Maximum net amount")
 }, async (params) => {
   const data = await api.get("/expenses", params);
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
@@ -31039,7 +31064,8 @@ server.tool("get_expense", "Get a single expense", {
 });
 server.tool("create_expense", "Log a new expense", {
   description: external_exports.string(),
-  amount: external_exports.number().positive(),
+  amount: external_exports.number().positive().describe("Net amount before VAT"),
+  vat_rate: external_exports.number().min(0).max(100).default(0).describe("VAT percentage"),
   date: external_exports.string().describe("Date YYYY-MM-DD"),
   category_id: external_exports.number().optional(),
   vendor: external_exports.string().optional(),
@@ -31053,7 +31079,8 @@ server.tool("create_expense", "Log a new expense", {
 server.tool("update_expense", "Update an expense", {
   id: external_exports.number().describe("Expense ID"),
   description: external_exports.string().optional(),
-  amount: external_exports.number().positive().optional(),
+  amount: external_exports.number().positive().optional().describe("Net amount before VAT"),
+  vat_rate: external_exports.number().min(0).max(100).optional().describe("VAT percentage"),
   date: external_exports.string().optional(),
   category_id: external_exports.number().optional(),
   vendor: external_exports.string().optional(),
@@ -31070,6 +31097,27 @@ server.tool("delete_expense", "Delete an expense", {
   await api.delete(`/expenses/${id}`);
   return { content: [{ type: "text", text: `Expense ${id} deleted.` }] };
 });
+server.tool(
+  "attach_receipt_to_expense",
+  "Attach or replace a receipt image/PDF on an expense by providing a local file path",
+  {
+    id: external_exports.number().describe("Expense ID"),
+    file_path: external_exports.string().describe("Absolute path to the receipt file (jpg, png, webp, or pdf)")
+  },
+  async ({ id, file_path }) => {
+    const data = await api.postFile(`/expenses/${id}/receipt`, file_path, "receipt");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+server.tool(
+  "remove_receipt_from_expense",
+  "Remove the receipt attached to an expense",
+  { id: external_exports.number().describe("Expense ID") },
+  async ({ id }) => {
+    const data = await api.delete(`/expenses/${id}/receipt`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
 server.tool("list_expense_categories", "List all expense categories", {}, async () => {
   const data = await api.get("/expense-categories");
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };

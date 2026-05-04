@@ -92,10 +92,15 @@ export interface Expense {
   description: string;
   vendor: string | null;
   amount: number;
+  vat_rate: number;
+  vat_amount: number;
+  gross_amount: number;
   currency: string;
   date: string;
   status: ExpenseStatus;
   notes: string | null;
+  receipt_path: string | null;
+  receipt_url: string | null;
   created_at: string;
   updated_at: string;
 }

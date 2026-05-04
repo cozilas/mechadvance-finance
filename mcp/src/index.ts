@@ -190,8 +190,11 @@ server.tool('delete_quotation', 'Delete a quotation', {
 server.tool('list_expenses', 'List expenses with optional filters', {
   category_id: z.number().optional(),
   status:      z.enum(['pending', 'approved', 'rejected']).optional(),
+  vendor:      z.string().optional().describe('Partial vendor name search'),
   from:        z.string().optional().describe('Start date YYYY-MM-DD'),
   to:          z.string().optional().describe('End date YYYY-MM-DD'),
+  min_amount:  z.number().min(0).optional().describe('Minimum net amount'),
+  max_amount:  z.number().min(0).optional().describe('Maximum net amount'),
 }, async (params) => {
   const data = await api.get('/expenses', params as Record<string, string | number | undefined>);
   return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
@@ -206,7 +209,8 @@ server.tool('get_expense', 'Get a single expense', {
 
 server.tool('create_expense', 'Log a new expense', {
   description: z.string(),
-  amount:      z.number().positive(),
+  amount:      z.number().positive().describe('Net amount before VAT'),
+  vat_rate:    z.number().min(0).max(100).default(0).describe('VAT percentage'),
   date:        z.string().describe('Date YYYY-MM-DD'),
   category_id: z.number().optional(),
   vendor:      z.string().optional(),
@@ -221,7 +225,8 @@ server.tool('create_expense', 'Log a new expense', {
 server.tool('update_expense', 'Update an expense', {
   id:          z.number().describe('Expense ID'),
   description: z.string().optional(),
-  amount:      z.number().positive().optional(),
+  amount:      z.number().positive().optional().describe('Net amount before VAT'),
+  vat_rate:    z.number().min(0).max(100).optional().describe('VAT percentage'),
   date:        z.string().optional(),
   category_id: z.number().optional(),
   vendor:      z.string().optional(),
@@ -239,6 +244,27 @@ server.tool('delete_expense', 'Delete an expense', {
   await api.delete(`/expenses/${id}`);
   return { content: [{ type: 'text', text: `Expense ${id} deleted.` }] };
 });
+
+server.tool('attach_receipt_to_expense',
+  'Attach or replace a receipt image/PDF on an expense by providing a local file path',
+  {
+    id:        z.number().describe('Expense ID'),
+    file_path: z.string().describe('Absolute path to the receipt file (jpg, png, webp, or pdf)'),
+  },
+  async ({ id, file_path }) => {
+    const data = await api.postFile(`/expenses/${id}/receipt`, file_path, 'receipt');
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool('remove_receipt_from_expense',
+  'Remove the receipt attached to an expense',
+  { id: z.number().describe('Expense ID') },
+  async ({ id }) => {
+    const data = await api.delete(`/expenses/${id}/receipt`);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  }
+);
 
 server.tool('list_expense_categories', 'List all expense categories', {}, async () => {
   const data = await api.get('/expense-categories');
